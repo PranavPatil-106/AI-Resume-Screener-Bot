@@ -96,17 +96,42 @@ uploaded = st.sidebar.file_uploader("Upload resume PDFs", type=["pdf"], accept_m
 if st.sidebar.button("🗑️ Clear All Data", help="Clear all uploaded resumes and start fresh"):
     st.session_state.vs = HuggingFaceVectorStore()
     st.session_state.rag = ResumeRAG(st.session_state.vs, reasoning_model=selected_model)
+    st.session_state.processed_files = set()
     st.success("✅ All data cleared! You can now upload new resumes.")
     st.rerun()
 
 if uploaded:
-    # Clear existing data when new files are uploaded
-    st.session_state.vs = HuggingFaceVectorStore()
-    st.session_state.rag = ResumeRAG(st.session_state.vs, reasoning_model=selected_model)
+    # Initialize separate list for new documents
+    new_docs = []
     
+    # Check if 'processed_files' exists in session state
+    if "processed_files" not in st.session_state:
+        st.session_state.processed_files = set()
+        
     with st.spinner("Processing resumes..."):
-        docs = preprocess_and_store(uploaded, st.session_state.vs)
-    st.success(f"✅ Processed {len(uploaded)} resumes into {len(docs)} chunks.")
+        for f in uploaded:
+            # Create a unique identifier for the file (e.g., name + size)
+            file_id = f"{f.name}_{f.size}"
+            
+            if file_id not in st.session_state.processed_files:
+                text = extract_text_from_pdf(f)
+                chunks = chunk_text(text)
+                for chunk in chunks:
+                    new_docs.append({"resume_id": f.name, "content": chunk})
+                
+                # Mark as processed
+                st.session_state.processed_files.add(file_id)
+        
+        # Only add to vectorstore if there are new documents
+        if new_docs:
+            if "vs" not in st.session_state or st.session_state.vs is None:
+                 st.session_state.vs = HuggingFaceVectorStore()
+                 st.session_state.rag = ResumeRAG(st.session_state.vs, reasoning_model=selected_model)
+                 
+            st.session_state.vs.add_documents(new_docs)
+            st.success(f"✅ Processed {len(new_docs)} new chunks from uploaded files.")
+        else:
+            st.info("Files already processed.")
 
 # Show current status
 if "vs" in st.session_state and hasattr(st.session_state.vs, 'vectors') and st.session_state.vs.vectors:

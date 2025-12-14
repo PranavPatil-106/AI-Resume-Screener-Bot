@@ -139,6 +139,7 @@ data/
 *.doc
 *.docx
 *.txt
+!requirements.txt
 resumes/
 documents/
 uploads/

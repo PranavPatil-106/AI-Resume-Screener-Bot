@@ -1,0 +1,8 @@
+python-dotenv
+pypdf
+streamlit
+groq
+numpy
+faiss-cpu
+sentence-transformers
+protobuf>=3.20.0,<4.0.0
